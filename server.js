@@ -29,7 +29,8 @@ try {
       private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n')
     };
   } else {
-    const credentialsPath = path.join(__dirname, 'credentials.json');
+    const credentialsPath = process.env.GOOGLE_CREDENTIALS_PATH
+  || path.join(__dirname, 'credentials.json');
     credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
   }
 } catch (error) {
