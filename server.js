@@ -18,8 +18,6 @@ app.use(cors({
 
 app.use(express.json({ limit: '1mb' }));
 
-// Credentials: local development me credentials.json use karega.
-// Hosting par environment variables set hon to unhe use karega.
 let credentials;
 
 try {
@@ -29,8 +27,10 @@ try {
       private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n')
     };
   } else {
-    const credentialsPath = process.env.GOOGLE_CREDENTIALS_PATH
-  || path.join(__dirname, 'credentials.json');
+    const credentialsPath =
+      process.env.GOOGLE_CREDENTIALS_PATH ||
+      path.join(__dirname, 'credentials.json');
+
     credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
   }
 } catch (error) {
@@ -102,7 +102,24 @@ async function submitUrl(url) {
   }
 }
 
-// Single URL
+// Root route: Render URL kholne par backend status dikhega
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'Backend API is running',
+    health: '/api/health',
+    submit: 'POST /api/submit',
+    bulkSubmit: 'POST /api/submit-bulk'
+  });
+});
+
+// Health check: Render settings me is path ko set kar sakte ho
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'Server running'
+  });
+});
+
+// Single URL submit
 app.post('/api/submit', async (req, res) => {
   const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
 
@@ -118,16 +135,17 @@ app.post('/api/submit', async (req, res) => {
 
   const result = await submitUrl(url);
 
-  // Google API error par bhi result details bhejte hain
   return res.status(result.success ? 200 : 502).json(result);
 });
 
-// Bulk URLs (maximum 20 URLs per request)
+// Bulk URLs: max 20 URLs
 app.post('/api/submit-bulk', async (req, res) => {
   const input = req.body?.urls;
 
   if (!Array.isArray(input)) {
-    return res.status(400).json({ error: 'URLs ka array required hai.' });
+    return res.status(400).json({
+      error: 'URLs ka array required hai.'
+    });
   }
 
   const urls = [...new Set(
@@ -138,7 +156,9 @@ app.post('/api/submit-bulk', async (req, res) => {
   )];
 
   if (urls.length === 0) {
-    return res.status(400).json({ error: 'Kam se kam ek valid URL daalein.' });
+    return res.status(400).json({
+      error: 'Kam se kam ek valid URL daalein.'
+    });
   }
 
   if (urls.length > 20) {
@@ -158,7 +178,6 @@ app.post('/api/submit-bulk', async (req, res) => {
 
   const results = [];
 
-  // Requests ko ek-ek karke bhejte hain
   for (const url of urls) {
     results.push(await submitUrl(url));
   }
@@ -169,11 +188,6 @@ app.post('/api/submit-bulk', async (req, res) => {
     failed: results.filter(result => !result.success).length,
     results
   });
-});
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'Server running' });
 });
 
 const PORT = process.env.PORT || 5000;
